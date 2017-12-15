@@ -11,6 +11,7 @@ var nodeObjectHash = require('node-object-hash');
 var envHash = require('./lib/env-hash');
 var promisify = require('./lib/util/promisify');
 var values = require('./lib/util/Object.values');
+var pluginCompat = require('./lib/util/plugin-compat');
 
 var AMDRequireContextDependency = require('webpack/lib/dependencies/AMDRequireContextDependency');
 var CommonJsRequireContextDependency = require('webpack/lib/dependencies/CommonJsRequireContextDependency');
@@ -1264,7 +1265,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       cb();
     });
 
-    compilation.plugin('need-additional-pass', function() {
+    pluginCompat.tap(compilation, 'needAdditionalPass', 'HardSourceWebpackPlugin', function() {
       if (needAdditionalPass) {
         needAdditionalPass = false;
         return true;
@@ -1362,7 +1363,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
                 return;
               }
               var identifier = identifierPrefix + result.request;
-              var module = fetch('module', identifier, {
+              var module = fetch('Module', identifier, {
                 compilation: compilation,
               });
               // var module = new HardModule(cacheItem);
@@ -1392,7 +1393,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
               return;
             }
             var identifier = identifierPrefix + result.request;
-            var module = fetch('module', identifier, {
+            var module = fetch('Module', identifier, {
               compilation: compilation,
             });
             // var module = new HardModule(p);
@@ -1429,7 +1430,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           //   }, {});
           // }
           // var module = memoryCache[memCacheId] = new HardModule(cacheItem);
-          var module = memoryCache[memCacheId] = fetch('module', key, {
+          var module = memoryCache[memCacheId] = fetch('Module', key, {
             compilation: {
               __hardSourceFileMd5s: fileMd5s,
               __hardSourceCachedMd5s: cachedMd5s,
@@ -1447,7 +1448,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         var memCacheId = 'm' + cacheItem.identifier;
         if (!memoryCache[memCacheId]) {
           // var module = memoryCache[memCacheId] = new HardContextModule(cacheItem);
-          var module = memoryCache[memCacheId] = fetch('module', key, {
+          var module = memoryCache[memCacheId] = fetch('Module', key, {
             compilation: {
               __hardSourceFileMd5s: fileMd5s,
               __hardSourceCachedMd5s: cachedMd5s,
@@ -1581,10 +1582,35 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
   var archetypeCaches = {
     asset: assetArchetypeCache,
+    Asset: assetArchetypeCache,
     module: moduleArchetypeCache,
+    Module: moduleArchetypeCache,
   };
 
   var freeze, thaw, mapFreeze, mapThaw, store, fetch;
+
+  pluginCompat.register(compiler, '_hardSourceMethods', 'sync', ['methods']);
+
+  [
+    'Asset',
+    'Compilation',
+    'Dependency',
+    'DependencyBlock',
+    'DependencyVariable',
+    'Module',
+    'ModuleAssets',
+    'ModuleError',
+    'ModuleWarning',
+    'SourceMap',
+  ].forEach(function(archetype) {
+    pluginCompat.register(compiler, '_hardSourceBeforeFreeze' + archetype, 'syncWaterfall', ['frozen', 'item', 'extra']);
+    pluginCompat.register(compiler, '_hardSourceFreeze' + archetype, 'syncWaterfall', ['frozen', 'item', 'extra']);
+    pluginCompat.register(compiler, '_hardSourceAfterFreeze' + archetype, 'syncWaterfall', ['frozen', 'item', 'extra']);
+
+    pluginCompat.register(compiler, '_hardSourceBeforeThaw' + archetype, 'syncWaterfall', ['item', 'frozen', 'extra']);
+    pluginCompat.register(compiler, '_hardSourceThaw' + archetype, 'syncWaterfall', ['item', 'frozen', 'extra']);
+    pluginCompat.register(compiler, '_hardSourceAfterThaw' + archetype, 'syncWaterfall', ['item', 'frozen', 'extra']);
+  });
 
   compiler.plugin(['watch-run', 'run'], function(_compiler, cb) {
     var compiler = _compiler;
@@ -1596,9 +1622,9 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         return item;
       }
 
-      frozen = compiler.applyPluginsWaterfall('--hard-source-before-freeze-' + archetype, frozen, item, extra);
-      frozen = compiler.applyPluginsWaterfall('--hard-source-freeze-' + archetype, frozen, item, extra);
-      frozen = compiler.applyPluginsWaterfall('--hard-source-after-freeze-' + archetype, frozen, item, extra);
+      frozen = pluginCompat.call(compiler, '_hardSourceBeforeFreeze' + archetype, [frozen, item, extra]);
+      frozen = pluginCompat.call(compiler, '_hardSourceFreeze' + archetype, [frozen, item, extra]);
+      frozen = pluginCompat.call(compiler, '_hardSourceAfterFreeze' + archetype, [frozen, item, extra]);
 
       return frozen;
     };
@@ -1607,9 +1633,9 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         return frozen;
       }
 
-      item = compiler.applyPluginsWaterfall('--hard-source-before-thaw-' + archetype, item, frozen, extra);
-      item = compiler.applyPluginsWaterfall('--hard-source-thaw-' + archetype, item, frozen, extra);
-      item = compiler.applyPluginsWaterfall('--hard-source-after-thaw-' + archetype, item, frozen, extra);
+      item = pluginCompat.call(compiler, '_hardSourceBeforeThaw' + archetype, [item, frozen, extra]);
+      item = pluginCompat.call(compiler, '_hardSourceThaw' + archetype, [item, frozen, extra]);
+      item = pluginCompat.call(compiler, '_hardSourceAfterThaw' + archetype, [item, frozen, extra]);
 
       return item;
     };
@@ -1667,7 +1693,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       store,
       fetch,
     };
-    compiler.applyPlugins('--hard-source-methods', methods);
+    pluginCompat.call(compiler, '_hardSourceMethods', [methods]);
     cb();
   });
 
@@ -1806,15 +1832,17 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         });
       }
 
-      if (!lodash.isEqual(compilation.fileDependencies, dataCache.fileDependencies)) {
-        lodash.difference(dataCache.fileDependencies, compilation.fileDependencies).forEach(function(file) {
+      var fileDependencies = Array.from(compilation.fileDependencies);
+
+      if (!lodash.isEqual(fileDependencies, dataCache.fileDependencies)) {
+        lodash.difference(dataCache.fileDependencies, fileDependencies).forEach(function(file) {
           buildingMd5s[file] = {
             mtime: 0,
             hash: '',
           };
         });
 
-        dataCache.fileDependencies = compilation.fileDependencies;
+        dataCache.fileDependencies = fileDependencies;
 
         dataOps.push({
           key: 'fileDependencies',
@@ -1857,15 +1885,17 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
       buildMd5Ops(dataCache.fileDependencies);
 
-      if (!lodash.isEqual(compilation.contextDependencies, dataCache.contextDependencies)) {
-        lodash.difference(dataCache.contextDependencies, compilation.contextDependencies).forEach(function(file) {
+      var contextDependencies = Array.from(compilation.contextDependencies);
+
+      if (!lodash.isEqual(contextDependencies, dataCache.contextDependencies)) {
+        lodash.difference(dataCache.contextDependencies, contextDependencies).forEach(function(file) {
           buildingMd5s[file] = {
             mtime: 0,
             hash: '',
           };
         });
 
-        dataCache.contextDependencies = compilation.contextDependencies;
+        dataCache.contextDependencies = contextDependencies;
 
         dataOps.push({
           key: 'contextDependencies',
@@ -1965,7 +1995,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       });
     }
 
-    // moduleCache.fileDependencies = compilation.fileDependencies;
+    // moduleCache.fileDependencies = fileDependencies;
     // moduleOps.push({
     //   type: 'put',
     //   key: 'fileDependencies',
@@ -1984,7 +2014,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
     var identifierPrefix = cachePrefix(compilation);
     if (identifierPrefix !== null) {
-      freeze('compilation', null, compilation);
+      freeze('Compilation', null, compilation);
     }
 
     assetOps = archetypeCaches.asset.operations();
