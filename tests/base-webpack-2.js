@@ -47,19 +47,21 @@ describeWP2('basic webpack 2 use - builds changes', function() {
   itCompilesChange('base-change-es2015-module', {
     'index.js': [
       'import {key} from \'./obj\';',
-      'console.log(key);',
+      'export default key;',
     ].join('\n'),
   }, {
     'index.js': [
       'import {fib} from \'./obj\';',
-      'console.log(fib(3));',
+      'export default fib(3);',
     ].join('\n'),
   }, function(output) {
-    expect(output.run1['main.js'].toString()).to.contain('"a" /* key */');
-    expect(output.run1['main.js'].toString()).to.not.contain('__webpack_exports__["a"]');
-    expect(output.run2['main.js'].toString()).to.contain('"a" /* fib */');
-    expect(output.run2['main.js'].toString()).to.contain('__webpack_require__.d(__webpack_exports__, "a"');
-    expect(output.run2['main.js'].toString()).to.contain('__webpack_exports__["a"]');
+    expect(eval(output.run1['main.js'].toString())).to.eql({default: 'obj'});
+    expect(eval(output.run2['main.js'].toString())).to.eql({default: 5});
+    // expect(output.run1['main.js'].toString()).to.contain('"a" /* key */');
+    // expect(output.run1['main.js'].toString()).to.not.contain('__webpack_exports__["a"]');
+    // expect(output.run2['main.js'].toString()).to.contain('"a" /* fib */');
+    // expect(output.run2['main.js'].toString()).to.contain('__webpack_require__.d(__webpack_exports__, "a"');
+    // expect(output.run2['main.js'].toString()).to.contain('__webpack_exports__["a"]');
   });
 
   itCompilesChange('base-change-es2015-commonjs-module', {
