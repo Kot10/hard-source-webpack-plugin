@@ -1364,9 +1364,9 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
               moduleResolveCache[cacheId] = Object.assign({}, request, {
                 parser: null,
                 // parserOptions: request.parser[NS + '/parser-options'],
-                type: request.settings.type,
+                type: request.settings && request.settings.type,
                 settings: request.settings,
-                parserOptions: request.settings.parser,
+                parserOptions: request.parser[NS + '/parser-options'] || request.settings.parser,
                 dependencies: null,
               });
             }
@@ -1380,7 +1380,9 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           result.parser = compilation.compiler.parser;
           // console.log(result.parserOptions);
           if (!result.parser || !result.parser.parse) {
-            result.parser = params.normalModuleFactory.getParser(result.type, result.settings.parser);
+            result.parser = result.type ?
+              params.normalModuleFactory.getParser(result.type, result.settings.parser) :
+              params.normalModuleFactory.getParser(result.parserOptions);
           }
           result.loaders = result.loaders.map(function(loader) {
             if (typeof loader === 'object' && loader.ident) {
