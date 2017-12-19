@@ -757,6 +757,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
             compiler.inputFileSystem.stat(missed, task(function(err, stat) {
               if (err) {
                 missingItem.invalid = true;
+                missingItem.invalidReason = 'resolved now missing';
               }
             }));
           }
@@ -765,11 +766,14 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
               if (err) {return;}
 
               if (stat.isDirectory()) {
-                if (group === 'context') {missingItem.invalid = true;}
+                if (group === 'context') {
+                  missingItem.invalid = true;
+                }
               }
               if (stat.isFile()) {
                 if (group === 'loader' || group === 'normal') {
                   missingItem.invalid = true;
+                  missingItem.invalidReason = 'missing now found';
                 }
               }
             }));
@@ -789,6 +793,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           ])];
           if (!contextMissing || contextMissing.invalid) {
             resolveItem.invalid = true;
+            resolveItem.invalidReason = 'resolved context invalid';
           }
         }
         else {
@@ -798,6 +803,9 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           ])];
           if (!normalMissing || normalMissing.invalid) {
             resolveItem.invalid = true;
+            resolveItem.invalidReason = 'resolved normal invalid' + (
+                normalMissing ? (' ' + normalMissing.invalidReason) : ': resolve entry not in cache'
+              );
           }
           resolveItem.loaders.forEach(function(loader) {
             if (typeof loader === 'object') {
@@ -821,6 +829,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
             }
             if (!loaderMissing || loaderMissing.invalid) {
               resolveItem.invalid = true;
+              resolveItem.invalidReason = 'resolved loader invalid';
             }
           });
         }
@@ -955,7 +964,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
             }
             else if (resolveItem && resolveItem.invalid) {
               cacheItem.invalid = true;
-              cacheItem.invalidReason = 'resolveItem';
+              cacheItem.invalidReason = 'resolveItem: ' + resolveItem.invalidReason;
               return;
             }
           }
