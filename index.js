@@ -1088,8 +1088,10 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       // missingCache[key] = missingCache[key] || {};
       // resolverCache[key] = resolverCache[key] || {};
 
+      // console.log('bindResolvers', key, resolver.constructor.name)
       var _resolve = resolver.resolve;
-      resolver.resolve = function(info, context, request, cb) {
+      resolver.resolve = function(info, context, request, cb, cb2) {
+        // console.log('resolver.resolve', Array.from(arguments))
         var numArgs = 4;
         if (!cb) {
           numArgs = 3;
@@ -1097,6 +1099,15 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           request = context;
           context = info;
         }
+        var path, resolveContext;
+        if (cb2) {
+          numArgs = 5;
+          resolveContext = cb;
+          cb = cb2;
+          path = context;
+          context = info;
+        }
+        // console.log(key, numArgs, context, path, request, resolveContext);
         var resolveId = JSON.stringify([context, request]);
         var resolve = resolverCache[key][resolveId];
         if (resolve && !resolve.invalid) {
@@ -1152,16 +1163,31 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         };
         if (callback.missing) {
           var _missing = callback.missing;
-          callback.missing = {push: function(path) {
-            localMissing.push(path);
-            _missing.push(path);
-          }};
+          callback.missing = {
+            push: function(path) {
+              localMissing.push(path);
+              _missing.push(path);
+            },
+            add: function(path) {
+              localMissing.add(path);
+              _missing.add(path);
+            },
+          };
         }
         else {
-          callback.missing = localMissing;
+          callback.missing = Object.assign(localMissing, {
+            add: function(path) {
+              localMissing.push(path);
+            },
+          });
         }
+        // console.log(numArgs);
         if (numArgs === 3) {
           _resolve.call(this, context, request, callback);
+        }
+        else if (numArgs === 5) {
+          // console.log(context, path, request, resolveContext);
+          _resolve.call(this, context, path, request, resolveContext, callback);
         }
         else {
           _resolve.call(this, info, context, request, callback);
@@ -1169,9 +1195,27 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       };
     }
 
-    configureMissing('normal', compiler.resolvers.normal);
-    configureMissing('loader', compiler.resolvers.loader);
-    configureMissing('context', compiler.resolvers.context);
+    // configureMissing('normal', compiler.resolvers.normal);
+    // configureMissing('loader', compiler.resolvers.loader);
+    // configureMissing('context', compiler.resolvers.context);
+
+    compiler.resolverFactory.plugin('resolver normal', function(resolver) {
+      configureMissing('normal', resolver);
+      // var _resolve = resolver.resolve;
+      // resolver.resolve = function() {
+      //   console.log('resolve', Array.from(arguments));
+      //   return _resolve.apply(this, arguments);
+      // }
+      return resolver;
+    });
+    compiler.resolverFactory.plugin('resolver loader', function(resolver) {
+      configureMissing('loader', resolver);
+      return resolver;
+    });
+    compiler.resolverFactory.plugin('resolver context', function(resolver) {
+      configureMissing('context', resolver);
+      return resolver;
+    });
   }
 
   compiler.plugin('after-plugins', function() {
@@ -1316,7 +1360,10 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
               moduleResolveCacheChange.push(cacheId);
               moduleResolveCache[cacheId] = Object.assign({}, request, {
                 parser: null,
-                parserOptions: request.parser[NS + '/parser-options'],
+                // parserOptions: request.parser[NS + '/parser-options'],
+                type: request.settings.type,
+                settings: request.settings,
+                parserOptions: request.settings.parser,
                 dependencies: null,
               });
             }
@@ -1328,8 +1375,9 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           var result = Object.assign({}, moduleResolveCache[cacheId]);
           result.dependencies = request.dependencies;
           result.parser = compilation.compiler.parser;
+          // console.log(result.parserOptions);
           if (!result.parser || !result.parser.parse) {
-            result.parser = params.normalModuleFactory.getParser(result.parserOptions);
+            result.parser = params.normalModuleFactory.getParser(result.type, result.settings.parser);
           }
           result.loaders = result.loaders.map(function(loader) {
             if (typeof loader === 'object' && loader.ident) {
