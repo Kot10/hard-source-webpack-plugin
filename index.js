@@ -1195,27 +1195,25 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       };
     }
 
-    // configureMissing('normal', compiler.resolvers.normal);
-    // configureMissing('loader', compiler.resolvers.loader);
-    // configureMissing('context', compiler.resolvers.context);
-
-    compiler.resolverFactory.plugin('resolver normal', function(resolver) {
-      configureMissing('normal', resolver);
-      // var _resolve = resolver.resolve;
-      // resolver.resolve = function() {
-      //   console.log('resolve', Array.from(arguments));
-      //   return _resolve.apply(this, arguments);
-      // }
-      return resolver;
-    });
-    compiler.resolverFactory.plugin('resolver loader', function(resolver) {
-      configureMissing('loader', resolver);
-      return resolver;
-    });
-    compiler.resolverFactory.plugin('resolver context', function(resolver) {
-      configureMissing('context', resolver);
-      return resolver;
-    });
+    if (compiler.resolverFactory) {
+      compiler.resolverFactory.plugin('resolver normal', function(resolver) {
+        configureMissing('normal', resolver);
+        return resolver;
+      });
+      compiler.resolverFactory.plugin('resolver loader', function(resolver) {
+        configureMissing('loader', resolver);
+        return resolver;
+      });
+      compiler.resolverFactory.plugin('resolver context', function(resolver) {
+        configureMissing('context', resolver);
+        return resolver;
+      });
+    }
+    else {
+      configureMissing('normal', compiler.resolvers.normal);
+      configureMissing('loader', compiler.resolvers.loader);
+      configureMissing('context', compiler.resolvers.context);
+    }
   }
 
   compiler.plugin('after-plugins', function() {
