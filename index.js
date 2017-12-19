@@ -947,11 +947,21 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
               var depCacheItem = moduleCache[depIdentifier];
               if (
                 depCacheItem &&
-                depCacheItem.fileDependencies
+                (depCacheItem.buildInfo ?
+                  depCacheItem.buildInfo.fileDependencies :
+                  depCacheItem.fileDependencies) &&
+                (depCacheItem.buildInfo ?
+                  depCacheItem.buildInfo.fileDependencies :
+                  depCacheItem.fileDependencies)
                 .reduce(function(carry, file) {
                   return carry && fileTimestamps[file];
                 }, true) &&
-                depCacheItem.contextDependencies
+                (depCacheItem.buildInfo ?
+                  depCacheItem.buildInfo.contextDependencies :
+                  depCacheItem.contextDependencies) &&
+                (depCacheItem.buildInfo ?
+                  depCacheItem.buildInfo.contextDependencies :
+                  depCacheItem.contextDependencies)
                 .reduce(function(carry, dir) {
                   return carry && contextTimestamps[dir];
                 }, true)
