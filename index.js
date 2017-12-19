@@ -1313,7 +1313,12 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       needAdditionalPass = compilation.modules.reduce(function(carry, module) {
         if (
           module.isHard && module.isHard() &&
-          HardModule.needRebuild(module.cacheItem, module.fileDependencies, module.contextDependencies, fileTimestamps, contextTimestamps, fileMd5s, cachedMd5s)
+          HardModule.needRebuild(
+            module.cacheItem,
+            module.fileDependencies, module.contextDependencies,
+            fileTimestamps, contextTimestamps,
+            fileMd5s, cachedMd5s
+          )
         ) {
           module.reasons.forEach(function(reason) {
             if (reason.dependency.__NormalModuleFactoryCache) {
@@ -1485,7 +1490,12 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       if (
         cacheItem &&
         cacheItem.fileDependencies &&
-        !HardModule.needRebuild(cacheItem, cacheItem.fileDependencies, cacheItem.contextDependencies, fileTimestamps, contextTimestamps, fileMd5s, cachedMd5s)
+        !HardModule.needRebuild(
+          cacheItem,
+          cacheItem.fileDependencies, cacheItem.contextDependencies,
+          fileTimestamps, contextTimestamps,
+          fileMd5s, cachedMd5s
+        )
       ) {
         var memCacheId = 'm' + cacheItem.identifier;
         if (!memoryCache[memCacheId]) {
@@ -1510,7 +1520,9 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       else if (
         cacheItem &&
         !cacheItem.fileDependencies &&
-        !HardContextModule.needRebuild(cacheItem, fileTimestamps, contextTimestamps, fileMd5s, cachedMd5s)
+        !HardContextModule.needRebuild(
+          cacheItem, fileTimestamps, contextTimestamps, fileMd5s, cachedMd5s
+        )
       ) {
         var memCacheId = 'm' + cacheItem.identifier;
         if (!memoryCache[memCacheId]) {
@@ -1556,7 +1568,12 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       Object.keys(compilation.cache).forEach(function(key) {
         var module = compilation.cache[key];
         if (module && module.isHard && module.isHard()) {
-          if (HardModule.needRebuild(module.cacheItem, module.fileDependencies, module.contextDependencies, fileTimestamps, contextTimestamps, fileMd5s, cachedMd5s)) {
+          if (HardModule.needRebuild(
+            module.cacheItem,
+            module.fileDependencies, module.contextDependencies,
+            fileTimestamps, contextTimestamps,
+            fileMd5s, cachedMd5s
+          )) {
             module.reasons.forEach(function(reason) {
               if (reason.dependency.__NormalModuleFactoryCache) {
                 reason.dependency.__NormalModuleFactoryCache = null;
