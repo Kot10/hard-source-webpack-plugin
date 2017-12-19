@@ -975,7 +975,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           ) {
             var dependencyIdentifier = cacheDependency._inContextDependencyIdentifier;
             if (!checkedDependencies[dependencyIdentifier]) {
-              var dependency = thaw('dependency', null, cacheDependency, {
+              var dependency = thaw('Dependency', null, cacheDependency, {
                 state: state.state,
                 compilation: compilation,
               });
