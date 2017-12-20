@@ -1,2 +1,2 @@
-import {fib} from './obj';
-console.log(fib(3));
+import {key} from './obj';
+export default key;
