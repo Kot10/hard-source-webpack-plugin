@@ -1,4 +1,28 @@
 var HardSourceWebpackPlugin = require('../../..');
+var webpackVersion = require('webpack/package.json').version;
+
+var moduleOptions;
+
+if (Number(webpackVersion.split('.')[0]) > 1) {
+  moduleOptions = {
+    rules: [
+      {
+        test: /\.css$/,
+        loader: 'style-loader!css-loader',
+      },
+    ],
+  };
+}
+else {
+  moduleOptions = {
+    loaders: [
+      {
+        test: /\.css$/,
+        loader: 'style-loader!css-loader',
+      },
+    ],
+  };
+}
 
 module.exports = {
   context: __dirname,
@@ -8,14 +32,7 @@ module.exports = {
     filename: 'main.js',
   },
   recordsPath: __dirname + '/tmp/cache/records.json',
-  module: {
-    loaders: [
-      {
-        test: /\.css$/,
-        loader: 'style-loader!css-loader',
-      },
-    ],
-  },
+  module: moduleOptions,
   plugins: [
     new HardSourceWebpackPlugin({
       cacheDirectory: 'cache',
