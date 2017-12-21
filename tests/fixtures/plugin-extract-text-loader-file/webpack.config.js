@@ -2,6 +2,7 @@ var ExtractTextPlugin = require('extract-text-webpack-plugin');
 var ExtractTextVersion = require('extract-text-webpack-plugin/package.json').version;
 
 var HardSourceWebpackPlugin = require('../../..');
+var webpackVersion = require('webpack/package.json').version;
 
 var extractOptions;
 if (Number(ExtractTextVersion[0]) > 1) {
@@ -14,15 +15,25 @@ else {
   extractOptions = ['style-loader', 'css-loader'];
 }
 
-module.exports = {
-  context: __dirname,
-  entry: './index.js',
-  output: {
-    path: __dirname + '/tmp',
-    filename: 'main.js',
-  },
-  recordsPath: __dirname + '/tmp/cache/records.json',
-  module: {
+var moduleOptions;
+
+if (Number(webpackVersion.split('.')[0]) > 1) {
+  moduleOptions = {
+    rules: [
+      {
+        test: /\.png$/,
+        loader: 'file-loader',
+      },
+      {
+        test: /\.css$/,
+        loader: ExtractTextPlugin.extract
+        .apply(ExtractTextPlugin, extractOptions),
+      },
+    ],
+  };
+}
+else {
+  moduleOptions = {
     loaders: [
       {
         test: /\.png$/,
@@ -34,7 +45,19 @@ module.exports = {
         .apply(ExtractTextPlugin, extractOptions),
       },
     ],
+  };
+}
+
+module.exports = {
+  context: __dirname,
+  entry: './index.js',
+  output: {
+    path: __dirname + '/tmp',
+    filename: 'main.js',
   },
+  recordsPath: __dirname + '/tmp/cache/records.json',
+  module: moduleOptions,
+  cache: true,
   plugins: [
     new ExtractTextPlugin('style.css'),
     new HardSourceWebpackPlugin({
